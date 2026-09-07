@@ -10,18 +10,17 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U coopserve -d coopserve"]
+      test: [ "CMD-SHELL", "pg_isready -U coopserve -d coopserve" ]
       interval: 5s
       timeout: 5s
       retries: 5
 
   backend:
     build: ./backend
+    network_mode: host
     environment:
-      DATABASE_URL: postgresql+asyncpg://coopserve:coopserve@db:5432/coopserve
+      DATABASE_URL: postgresql+asyncpg://coopserve:coopserve@localhost:5432/coopserve
       CORS_ORIGINS: http://localhost:5173
-    ports:
-      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy

@@ -1,7 +1,8 @@
-import type { DashboardStats, Initiative, InitiativeCreate } from '../types/api'
+import type { DashboardStats, Initiative, InitiativeCreate, ServiceRequest, ServiceRequestCreate, ServiceRequestStatus } from '../types/api'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/v1'
 const STORAGE_KEY = 'coopserve-offline-initiatives'
+const REQUEST_STORAGE_KEY = 'coopserve-offline-service-requests'
 export let apiOffline = false
 
 class ApiResponseError extends Error {
@@ -36,6 +37,27 @@ async function remoteFetch<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 function markOffline() { apiOffline = true }
+
+function offlineServiceRequests(): ServiceRequest[] {
+  const stored = localStorage.getItem(REQUEST_STORAGE_KEY)
+  if (!stored) return []
+  try { return JSON.parse(stored) as ServiceRequest[] } catch { return [] }
+}
+
+function saveOfflineServiceRequests(requests: ServiceRequest[]) {
+  localStorage.setItem(REQUEST_STORAGE_KEY, JSON.stringify(requests))
+}
+
+async function syncOfflineServiceRequests() {
+  const queued = offlineServiceRequests().filter((item) => item.id < 0)
+  for (const request of queued) {
+    try {
+      const { id: _id, status: _status, assigned_to: _assignedTo, assigned_contact: _assignedContact, created_at: _createdAt, updated_at: _updatedAt, ...payload } = request
+      const uploaded = await remoteFetch<ServiceRequest>('/service-requests', { method: 'POST', body: JSON.stringify(payload) })
+      saveOfflineServiceRequests(offlineServiceRequests().map((item) => item.id === request.id ? uploaded : item))
+    } catch { return }
+  }
+}
 
 export async function getInitiatives(category?: string) {
   try {
@@ -80,4 +102,43 @@ export async function joinInitiative(id: number, payload: { volunteer_name: stri
     saveOfflineInitiatives(initiatives.map((item) => item.id === id ? updated : item))
     return updated
   }
+}
+
+export async function getServiceRequests() {
+  try {
+    await syncOfflineServiceRequests()
+    const result = await remoteFetch<ServiceRequest[]>('/service-requests')
+    apiOffline = false
+    return result
+  } catch (error) {
+    if (error instanceof ApiResponseError) throw error
+    markOffline()
+    return offlineServiceRequests()
+  }
+}
+
+export async function createServiceRequest(payload: ServiceRequestCreate) {
+  try {
+    const result = await remoteFetch<ServiceRequest>('/service-requests', { method: 'POST', body: JSON.stringify(payload) })
+    apiOffline = false
+    return result
+  } catch (error) {
+    if (error instanceof ApiResponseError) throw error
+    markOffline()
+    const created: ServiceRequest = { ...payload, id: -Date.now(), status: 'pending', assigned_to: null, assigned_contact: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+    saveOfflineServiceRequests([created, ...offlineServiceRequests()])
+    return created
+  }
+}
+
+export async function assignServiceRequest(id: number, payload: { assigned_to: string; assigned_contact: string }) {
+  const result = await remoteFetch<ServiceRequest>(`/service-requests/${id}/assign`, { method: 'POST', body: JSON.stringify(payload) })
+  apiOffline = false
+  return result
+}
+
+export async function updateServiceRequestStatus(id: number, status: ServiceRequestStatus) {
+  const result = await remoteFetch<ServiceRequest>(`/service-requests/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) })
+  apiOffline = false
+  return result
 }

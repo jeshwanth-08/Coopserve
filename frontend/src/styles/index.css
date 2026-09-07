@@ -436,6 +436,55 @@ h2 {
     letter-spacing: -.05em;
 }
 
+.request-card {
+    min-height: 325px;
+}
+
+.status-assigned {
+    color: #78602d;
+    background: #eee5c8;
+}
+
+.status-resolved {
+    color: #52705a;
+    background: #dceadf;
+}
+
+.assigned-copy {
+    min-height: 18px;
+    margin: 0 0 15px;
+    color: #7a8680;
+    font-size: 11px;
+}
+
+.request-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: auto;
+}
+
+.request-actions select {
+    min-width: 110px;
+    border: 1px solid #dfe4db;
+    padding: 7px 8px;
+    color: #64716b;
+    background: #fff;
+    font-size: 10px;
+}
+
+.empty-requests {
+    padding: 34px 0;
+    border-top: 1px solid #dfe4db;
+    color: #7a8680;
+    font-size: 13px;
+}
+
+.requests-section {
+    padding-top: 0;
+}
+
 .description {
     min-height: 42px;
     margin-bottom: 19px;
