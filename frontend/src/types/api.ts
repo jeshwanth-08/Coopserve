@@ -1,5 +1,11 @@
 export type HealthResponse = { status: 'ok'; service: string }
 
+export type UserRole = 'admin' | 'service_provider' | 'member'
+
+export type AuthUser = { email: string; name: string; role: UserRole; capabilities: string[] }
+
+export type LoginResponse = { access_token: string; token_type: 'bearer'; user: AuthUser }
+
 export type InitiativeStatus = 'open' | 'in_progress' | 'completed'
 
 export type Initiative = {

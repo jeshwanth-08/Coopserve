@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { ArrowUpRight, Check, ChevronRight, HandHelping, Leaf, MapPin, Plus, Send, Sparkles, Users, X } from 'lucide-react'
+import { ArrowUpRight, BarChart3, Check, ChevronRight, ClipboardList, HandHelping, Leaf, MapPin, Plus, Send, ShieldCheck, Sparkles, Star, UserCheck, Users, Wrench, X } from 'lucide-react'
 import { apiOffline, createInitiative, getDashboardStats, getInitiatives, joinInitiative } from '../lib/api'
-import type { DashboardStats, Initiative, InitiativeCreate } from '../types/api'
+import type { DashboardStats, Initiative, InitiativeCreate, UserRole } from '../types/api'
+import type { AuthUser } from '../types/api'
 
 const categories = ['All initiatives', 'Environment', 'Education', 'Community care', 'Food security']
 const sampleInitiatives: Initiative[] = [
@@ -30,7 +31,18 @@ function InitiativeCard({ initiative, onJoin }: { initiative: Initiative; onJoin
     )
 }
 
-export function DashboardPage() {
+const roleDetails: Record<UserRole, { eyebrow: string; title: string; intro: string; icon: typeof ShieldCheck }> = {
+    admin: { eyebrow: 'Operations workspace', title: 'Keep every request moving.', intro: 'See the full service picture, coordinate providers, and keep response quality visible.', icon: ShieldCheck },
+    service_provider: { eyebrow: 'Provider workspace', title: 'Your next good action.', intro: 'Manage assigned requests, update progress, and close the loop with the people you serve.', icon: Wrench },
+    member: { eyebrow: 'Member workspace', title: 'Your community, in motion.', intro: 'Raise a request, follow its progress, and help make the service better with your feedback.', icon: Users },
+}
+
+const capabilityIcons = [ClipboardList, UserCheck, Check, Wrench, BarChart3, ClipboardList, Check, ShieldCheck, Star, Plus, ClipboardList, MapPin, Star]
+
+export function DashboardPage({ user, onLogout }: { user: AuthUser | null; onLogout: () => void }) {
+    const role = user?.role || 'member'
+    const roleInfo = roleDetails[role]
+    const RoleIcon = roleInfo.icon
     const [category, setCategory] = useState('All initiatives')
     const [initiatives, setInitiatives] = useState<Initiative[]>([])
     const [stats, setStats] = useState<DashboardStats>(sampleStats)
@@ -73,8 +85,9 @@ export function DashboardPage() {
 
     return (
         <main className="app-shell">
-            <header className="topbar"><a className="brand" href="/"><span className="brand-mark"><HandHelping size={19} /></span><span>Coop<span>Serve</span></span></a><nav><a className="active" href="#discover">Discover</a><a href="#how-it-works">How it works</a><button className="profile-button" aria-label="Your profile">JS</button></nav></header>
-            <section className="hero" id="discover"><div className="hero-copy"><p className="eyebrow"><Sparkles size={15} /> Local action, made visible</p><h1>Small acts.<br /><em>Shared impact.</em></h1><p className="hero-intro">CoopServe helps neighbours turn everyday needs into organised, measurable action.</p><div className="hero-actions"><button className="primary-button" onClick={() => setShowCreate(true)}>Raise a need <Plus size={17} /></button><a className="text-button" href="#initiatives">Explore initiatives <ChevronRight size={17} /></a></div></div><div className="hero-art"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="hero-stat"><span>Community pulse</span><strong>+28%</strong><small>more people helping this month</small></div><div className="hero-leaf"><Leaf size={80} strokeWidth={1} /></div></div></section>
+            <header className="topbar"><a className="brand" href="/"><span className="brand-mark"><HandHelping size={19} /></span><span>Coop<span>Serve</span></span></a><nav><a className="active" href="#discover">Discover</a><a href="#how-it-works">How it works</a><button className="profile-button" aria-label={`Sign out ${user?.email || 'your account'}`} onClick={onLogout}>{user?.email?.slice(0, 2).toUpperCase() || 'JS'}</button></nav></header>
+            <section className="hero" id="discover"><div className="hero-copy"><p className="eyebrow"><RoleIcon size={15} /> {roleInfo.eyebrow}</p><h1>{roleInfo.title.split(' ').slice(0, -2).join(' ')}<br /><em>{roleInfo.title.split(' ').slice(-2).join(' ')}</em></h1><p className="hero-intro">{roleInfo.intro}</p><div className="hero-actions"><button className="primary-button" onClick={() => setShowCreate(true)}>{role === 'member' ? 'Raise a need' : role === 'admin' ? 'Review requests' : 'View assignments'} <Plus size={17} /></button><a className="text-button" href="#access">Your access <ChevronRight size={17} /></a></div></div><div className="hero-art"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="hero-stat"><span>{role === 'admin' ? 'Requests in view' : role === 'service_provider' ? 'Assigned today' : 'My requests'}</span><strong>{role === 'admin' ? '24' : role === 'service_provider' ? '08' : '03'}</strong><small>{role === 'admin' ? 'across the community' : role === 'service_provider' ? 'ready for your attention' : 'being looked after'}</small></div><div className="hero-leaf"><Leaf size={80} strokeWidth={1} /></div></div></section>
+            <section className="access-section" id="access"><div className="section-heading"><div><p className="eyebrow">Your workspace</p><h2>What you can do</h2></div><span className="role-badge">{role.replace('_', ' ')}</span></div><div className="capability-grid">{(user?.capabilities || []).map((capability, index) => { const Icon = capabilityIcons[index % capabilityIcons.length]; return <button className="capability-card" key={capability}><span className="capability-icon"><Icon size={18} /></span><span>{capability}</span><ArrowUpRight size={15} /></button> })}</div></section>
             <section className="stats-strip"><div><strong>{stats.active_initiatives}</strong><span>Active initiatives</span></div><div><strong>{stats.community_members.toLocaleString()}</strong><span>People showing up</span></div><div><strong>{stats.volunteer_hours.toLocaleString()}</strong><span>Hours volunteered</span></div><div><strong>{stats.neighborhoods}</strong><span>Neighbourhoods connected</span></div></section>
             <section className="initiatives-section" id="initiatives"><div className="section-heading"><div><p className="eyebrow">The live board</p><h2>Ways to make a difference</h2></div><span className="live-indicator"><i /> Updated just now</span></div><div className="filter-row">{categories.map((item) => <button key={item} className={category === item ? 'filter active' : 'filter'} onClick={() => setCategory(item)}>{item}</button>)}</div>{isDemo && <div className="demo-note">Showing sample initiatives while the API is offline.</div>}{loading ? <div className="loading-state">Loading the community board...</div> : <div className="initiative-grid">{displayedInitiatives.map((initiative) => <InitiativeCard key={initiative.id} initiative={initiative} onJoin={setJoining} />)}</div>}</section>
             <section className="callout" id="how-it-works"><div><p className="eyebrow">One good idea is enough</p><h2>Have a need your neighbourhood can solve?</h2><p>Put it on the board. Find the people, tools, and momentum to move it forward.</p></div><button className="light-button" onClick={() => setShowCreate(true)}>Start an initiative <Send size={16} /></button></section>

@@ -1,7 +1,8 @@
-import type { DashboardStats, Initiative, InitiativeCreate } from '../types/api'
+import type { DashboardStats, Initiative, InitiativeCreate, LoginResponse } from '../types/api'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/v1'
 const STORAGE_KEY = 'coopserve-offline-initiatives'
+export const AUTH_TOKEN_KEY = 'coopserve-auth-token'
 export let apiOffline = false
 
 class ApiResponseError extends Error {
@@ -30,12 +31,17 @@ function saveOfflineInitiatives(initiatives: Initiative[]) {
 }
 
 async function remoteFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, { headers: { 'Content-Type': 'application/json', ...options?.headers }, ...options })
+  const token = localStorage.getItem(AUTH_TOKEN_KEY)
+  const response = await fetch(`${API_URL}${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options?.headers } })
   if (!response.ok) throw new ApiResponseError(response.status)
   return response.json() as Promise<T>
 }
 
 function markOffline() { apiOffline = true }
+
+export function login(email: string, password: string) {
+  return remoteFetch<LoginResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
+}
 
 export async function getInitiatives(category?: string) {
   try {
